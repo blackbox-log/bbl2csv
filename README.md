@@ -1,8 +1,8 @@
 # `bbl2csv`
 
-[![license](https://img.shields.io/github/license/wetheredge/blackbox)](https://github.com/wetheredge/blackbox/blob/main/COPYING)
+[![license](https://img.shields.io/github/license/blackbox-log/bbl2csv)](https://github.com/blackbox-log/bbl2csv/blob/main/COPYING)
 
-This is a cli frontend for `blackbox-log` inspired by the original
+This is a cli frontend for [`blackbox-log`][bb-log] inspired by the original
 `blackbox_decode`.
 
 ## Feature comparison
@@ -52,4 +52,5 @@ In accordance with the [GNU FAQ][gpl-ports]'s guidance that ports are
 derivative works, all code is licensed under the GPLv3 to match the Betaflight
 and INAV projects.
 
+[bb-log]: https://github.com/blackbox-log/blackbox-log
 [gpl-ports]: https://www.gnu.org/licenses/gpl-faq.html#TranslateCode
