@@ -1,0 +1,25 @@
+name: CI
+on:
+  push:
+    branches:
+      - 'main'
+      - 'ci'
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  clippy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - run: cargo install --locked cargo-cranky
+      - run: cargo cranky --all-targets --all-features
+
+  typos:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: crate-ci/typos@master
