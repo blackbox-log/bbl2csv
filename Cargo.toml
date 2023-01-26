@@ -20,6 +20,7 @@ name = "bbl2csv"
 
 [dependencies]
 exitcode = "1.1.2"
+is-terminal = "0.4.2"
 lexopt = "0.3.0"
 mimalloc = { version = "0.1.34", default-features = false }
 rayon = "1.6.1"
@@ -34,6 +35,9 @@ version = "0.2.0"
 version = "0.3.16"
 default-features = false
 features = ["smallvec", "fmt", "ansi", "std"]
+
+[target.'cfg(windows)'.dependencies]
+output_vt100 = "0.1.3"
 
 [profile.release]
 lto = "thin"

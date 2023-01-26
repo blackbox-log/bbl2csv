@@ -18,6 +18,10 @@ use self::cli::{Action, Cli};
 static ALLOC: MiMalloc = MiMalloc;
 
 fn main() {
+    // Enable ANSI escapes on Windows
+    #[cfg(windows)]
+    output_vt100::init();
+
     let parser = lexopt::Parser::from_env();
     let bin = parser
         .bin_name()
@@ -41,8 +45,11 @@ fn main() {
         }
     };
 
+    let log_stream = io::stderr;
     tracing_subscriber::fmt()
         .with_max_level(cli.verbosity)
+        .with_ansi(cli.enable_color(log_stream()))
+        .with_writer(log_stream)
         .init();
 
     if let Err(err) = cli.validate() {

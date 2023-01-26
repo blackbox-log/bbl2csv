@@ -2,6 +2,7 @@
 
 use std::convert::Infallible;
 use std::path::PathBuf;
+use std::str::FromStr;
 
 use tracing_subscriber::filter::LevelFilter;
 
@@ -40,6 +41,7 @@ OPTIONS:
   -F, --gps-filter <fields>       Select gps fields to output by name, like --filter. Implies --gps
   -v, --verbose                   Increase debug output up to {max_verbose} times
   -q, --quiet                     Reduce debug output up to {max_quiet} times
+      --color <when>              Set when to enable color [auto, always, never]
   -h, --help                      Print this help
   -V, --version                   Print version information",
     );
@@ -56,6 +58,27 @@ pub(crate) enum Action {
     Version,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub(crate) enum Color {
+    #[default]
+    Auto,
+    Always,
+    Never,
+}
+
+impl FromStr for Color {
+    type Err = &'static str;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "auto" => Ok(Color::Auto),
+            "always" => Ok(Color::Always),
+            "never" => Ok(Color::Never),
+            _ => Err("invalid value for --color"),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 #[allow(unused, clippy::default_trait_access)]
 pub(crate) struct Cli {
@@ -66,6 +89,7 @@ pub(crate) struct Cli {
     pub filter: Option<Vec<String>>,
     pub gps_filter: Option<Vec<String>>,
     pub verbosity: LevelFilter,
+    pub color: Color,
     pub logs: Vec<PathBuf>,
 }
 
@@ -89,6 +113,7 @@ impl Cli {
         let mut filter = None;
         let mut gps_filter = None;
         let mut verbosity = DEFAULT_VERBOSITY;
+        let mut color = Color::Auto;
         let mut logs = Vec::new();
 
         while let Some(arg) = parser.next()? {
@@ -106,6 +131,7 @@ impl Cli {
                 }
                 Short('v') | Long("verbose") => verbosity += 1,
                 Short('q') | Long("quiet") => verbosity -= 1,
+                Long("color") => color = parser.value()?.parse()?,
                 Short('h') | Long("help") => return Ok(Action::Help),
                 Short('V') | Long("version") => return Ok(Action::Version),
                 Value(value) => logs.push(value.into()),
@@ -122,6 +148,7 @@ impl Cli {
             filter,
             gps_filter,
             verbosity: verbosity_from_int(verbosity),
+            color,
             logs,
         }))
     }
@@ -132,6 +159,14 @@ impl Cli {
         }
 
         Ok(())
+    }
+
+    pub(crate) fn enable_color<S: is_terminal::IsTerminal>(&self, stream: S) -> bool {
+        match self.color {
+            Color::Auto => stream.is_terminal(),
+            Color::Always => true,
+            Color::Never => false,
+        }
     }
 }
 
