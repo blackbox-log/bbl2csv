@@ -6,8 +6,8 @@ fmt *args='':
     cargo +nightly fmt {{ args }}
 
 # Run clippy using cargo-cranky
-check *args='':
-    cargo cranky --all-features --all-targets {{ args }}
+check *args='--all-features':
+    cargo cranky --all-targets {{ args }}
 
 # Profile using cargo-flamegraph
 profile *args='':
