@@ -35,11 +35,6 @@ version = "0.3.16"
 default-features = false
 features = ["smallvec", "fmt", "ansi", "std"]
 
-[profile.bench]
-strip = false
-debug = true
-debug-assertions = false
-
 [profile.release]
 lto = "thin"
 opt-level = 3
