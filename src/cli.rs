@@ -33,11 +33,11 @@ OPTIONS:
   -i, --index <index>             Choose which log(s) should be decoded or omit to decode all
                                   (applies to all files & can be repeated)
       --limits                    Print the limits and range of each field (TODO)
-      --altitude-offset <offset>  Altitude offset in meters (TODO)
+      --altitude-offset <offset>  Set the altitude offset in meters (TODO)
       --gps                       Write GPS data into .gps.csv files
   -f, --filter <fields>           Select fields to output by name, excluding any suffixed index
                                   (comma separated)
-  -F, --gps-filter <fields>       Same as --filter, but for GPS fields. Implies --gps
+  -F, --gps-filter <fields>       Select gps fields to output by name, like --filter. Implies --gps
   -v, --verbose                   Increase debug output up to {max_verbose} times
   -q, --quiet                     Reduce debug output up to {max_quiet} times
   -h, --help                      Print this help
