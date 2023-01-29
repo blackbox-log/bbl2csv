@@ -1,5 +1,7 @@
 # `bbl2csv`
 
+[![CI](https://github.com/blackbox-log/bbl2csv/actions/workflows/ci.yaml/badge.svg)](https://github.com/blackbox-log/bbl2csv/actions/workflows/ci.yaml)
+[![dependency status](https://deps.rs/repo/github/blackbox-log/bbl2csv/status.svg)](https://deps.rs/repo/github/blackbox-log/bbl2csv)
 [![license](https://img.shields.io/github/license/blackbox-log/bbl2csv)](https://github.com/blackbox-log/bbl2csv/blob/main/COPYING)
 
 This is a cli frontend for [`blackbox-log`][bb-log] inspired by the original
@@ -22,7 +24,7 @@ This is a cli frontend for [`blackbox-log`][bb-log] inspired by the original
 
 ## Benchmarks
 
-As of [5ca6f6c](https://github.com/wetheredge/blackbox/commit/5ca6f6cd43011323bc0358182546c0a7071ad546):
+As of [5ca6f6c](https://github.com/blackbox-log/blackbox-log/commit/5ca6f6cd43011323bc0358182546c0a7071ad546):
 
 ```shell
 $ exa -lbs size --no-time --no-permissions --no-user blackbox-log/tests/logs/gimbal-ghost/LOG00001.BFL

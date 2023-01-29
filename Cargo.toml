@@ -4,7 +4,7 @@
 name = "bbl2csv"
 version = "0.1.0"
 description = "Ergonomic cli for parsing BetaFlight blackbox logs into csv"
-repository = "https://github.com/wetheredge/blackbox"
+repository = "https://github.com/blackbox-log/bbl2csv"
 readme = "README.md"
 categories = ["aerospace::drones", "aerospace::unmanned-aerial-vehicles", "command-line-utilities", "parser-implementations"]
 keywords = ["blackbox_decode", "betaflight", "blackbox"]
