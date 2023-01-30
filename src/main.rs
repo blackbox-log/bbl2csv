@@ -104,6 +104,9 @@ fn main() {
                 .iter()
                 .map(|f| f.name)
                 .chain(headers.slow_frame_def.iter().map(|f| f.name));
+            let field_names = iter::once("iteration")
+                .chain(iter::once("time"))
+                .chain(field_names);
 
             let mut out = get_output(filename, human_i, "csv")?;
             if let Err(error) = write_csv_line(&mut out, field_names) {
