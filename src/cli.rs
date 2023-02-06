@@ -20,13 +20,12 @@ const MAX_VERBOSITY: isize = VERBOSITY_LEVELS.len() as isize - 1;
 
 #[allow(clippy::print_stderr)]
 pub(crate) fn print_help(bin: &str) {
-    let max_verbose = MAX_VERBOSITY - DEFAULT_VERBOSITY;
-    let max_quiet = DEFAULT_VERBOSITY;
-    let description = env!("CARGO_PKG_DESCRIPTION");
-
-    print_version();
     eprintln!(
-        "{description}
+        concat!(
+            env!("BBL2CSV_VERSION"),
+            "\n",
+            env!("CARGO_PKG_DESCRIPTION"),
+            "
 
 USAGE: {bin} [options] <log>...
 
@@ -43,13 +42,17 @@ OPTIONS:
   -q, --quiet                     Reduce debug output up to {max_quiet} times
       --color <when>              Set when to enable color [auto, always, never]
   -h, --help                      Print this help
-  -V, --version                   Print version information",
+  -V, --version                   Print version information"
+        ),
+        bin = bin,
+        max_verbose = MAX_VERBOSITY - DEFAULT_VERBOSITY,
+        max_quiet = DEFAULT_VERBOSITY,
     );
 }
 
 #[allow(clippy::print_stderr)]
 pub(crate) fn print_version() {
-    eprintln!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
+    eprintln!(env!("BBL2CSV_VERSION"));
 }
 
 pub(crate) enum Action {
