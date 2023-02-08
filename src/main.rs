@@ -5,10 +5,9 @@ use std::io::{self, BufWriter, Write};
 use std::path::Path;
 use std::{iter, process};
 
-use blackbox_log::data::ParserEvent;
-use blackbox_log::frame::{Frame as _, FrameDef as _, GpsFrame, MainFrame, SlowFrame};
+use blackbox_log::prelude::*;
 use blackbox_log::units::{si, Time};
-use blackbox_log::{DataParser, FieldFilter, Headers, Value};
+use blackbox_log::{frame, Value};
 use mimalloc::MiMalloc;
 use rayon::prelude::*;
 
@@ -191,7 +190,7 @@ fn get_output(
     Ok(BufWriter::new(file))
 }
 
-fn write_main_frame(out: &mut impl Write, main: MainFrame, slow: &str) -> io::Result<()> {
+fn write_main_frame(out: &mut impl Write, main: frame::MainFrame, slow: &str) -> io::Result<()> {
     out.write_all(main.iteration().to_string().as_bytes())?;
     out.write_all(b",")?;
     out.write_all(format_time(main.time()).as_bytes())?;
@@ -209,7 +208,7 @@ fn write_main_frame(out: &mut impl Write, main: MainFrame, slow: &str) -> io::Re
     out.write_all(b"\n")
 }
 
-fn format_slow_frame(out: &mut String, slow: SlowFrame) {
+fn format_slow_frame(out: &mut String, slow: frame::SlowFrame) {
     let mut fields = slow.iter().map(|v| format_value(v.into()));
 
     if let Some(first) = fields.next() {
@@ -222,7 +221,7 @@ fn format_slow_frame(out: &mut String, slow: SlowFrame) {
     }
 }
 
-fn write_gps_frame(out: &mut impl Write, gps: GpsFrame) -> io::Result<()> {
+fn write_gps_frame(out: &mut impl Write, gps: frame::GpsFrame) -> io::Result<()> {
     let time = format_time(gps.time());
     let fields = gps.iter().map(Value::from).map(format_value);
 
