@@ -5,9 +5,10 @@ use std::io::{self, BufWriter, Write};
 use std::path::Path;
 use std::{iter, process};
 
+use blackbox_log::data::ParserEvent;
 use blackbox_log::prelude::*;
 use blackbox_log::units::{si, Time};
-use blackbox_log::{frame, Value};
+use blackbox_log::{frame, FieldFilter, FieldFilterSet, Value};
 use mimalloc::MiMalloc;
 use rayon::prelude::*;
 
@@ -57,7 +58,11 @@ fn main() {
     }
 
     let filter = cli.filter.map(FieldFilter::from_iter);
-    let gps_filter = cli.gps_filter.map(FieldFilter::from_iter);
+    let filters = FieldFilterSet {
+        main: filter.clone(),
+        slow: filter,
+        gps: cli.gps_filter.map(FieldFilter::from_iter),
+    };
 
     let result = cli.logs.par_iter().try_for_each(|filename| {
         let span = tracing::info_span!("file", name = ?filename);
@@ -78,34 +83,26 @@ fn main() {
 
             let mut log = file.get_reader(i);
 
-            let headers: Headers = {
-                let mut headers = Headers::parse(&mut log).map_err(|err| {
-                    tracing::debug!("header parse error: {err}");
-                    exitcode::DATAERR
-                })?;
+            let headers = Headers::parse(&mut log).map_err(|err| {
+                tracing::debug!("header parse error: {err}");
+                exitcode::DATAERR
+            })?;
 
-                if let Some(filter) = &filter {
-                    headers.main_frame_def.apply_filter(filter);
-                    headers.slow_frame_def.apply_filter(filter);
-                }
-
-                if let Some(gps_filter) = &gps_filter {
-                    if let Some(def) = &mut headers.gps_frame_def {
-                        def.apply_filter(gps_filter);
-                    }
-                }
-
-                headers
+            let mut headers_out = get_output(filename, human_i, "headers.csv")?;
+            if let Err(error) = write_headers(&mut headers_out, &headers) {
+                tracing::error!(%error, "failed to write headers file");
+                return Err(exitcode::IOERR);
             };
 
-            let field_names = headers
-                .main_frame_def
+            let mut parser = DataParser::with_filters(log, &headers, &filters);
+
+            let main_frame_def = parser.main_frame_def();
+            let slow_frame_def = parser.slow_frame_def();
+            let field_names = main_frame_def
                 .iter()
                 .map(|f| f.name)
-                .chain(headers.slow_frame_def.iter().map(|f| f.name));
-            let field_names = iter::once("iteration")
-                .chain(iter::once("time"))
-                .chain(field_names);
+                .chain(slow_frame_def.iter().map(|f| f.name));
+            let field_names = iter::once("time").chain(field_names);
 
             let mut out = get_output(filename, human_i, "csv")?;
             if let Err(error) = write_csv_line(&mut out, field_names) {
@@ -113,7 +110,7 @@ fn main() {
                 return Err(exitcode::IOERR);
             }
 
-            let mut gps_out = match &headers.gps_frame_def {
+            let mut gps_out = match parser.gps_frame_def() {
                 Some(def) if cli.gps => {
                     let mut out = get_output(filename, human_i, "gps.csv")?;
 
@@ -127,8 +124,7 @@ fn main() {
                 _ => None,
             };
 
-            let mut parser = DataParser::new(log, &headers);
-            let mut slow: String = ",".repeat(headers.slow_frame_def.len().saturating_sub(1));
+            let mut slow: String = ",".repeat(parser.slow_frame_def().len().saturating_sub(1));
             while let Some(frame) = parser.next() {
                 match frame {
                     ParserEvent::Event(_) => {}
@@ -191,8 +187,6 @@ fn get_output(
 }
 
 fn write_main_frame(out: &mut impl Write, main: frame::MainFrame, slow: &str) -> io::Result<()> {
-    out.write_all(main.iteration().to_string().as_bytes())?;
-    out.write_all(b",")?;
     out.write_all(format_time(main.time()).as_bytes())?;
 
     for field in main.iter().map(|v| format_value(v.into())) {
@@ -255,6 +249,38 @@ fn format_value(value: Value) -> String {
         Value::Unsigned(u) => u.to_string(),
         Value::Signed(s) => s.to_string(),
     }
+}
+
+fn write_headers(out: &mut impl Write, headers: &Headers) -> io::Result<()> {
+    let firmware = headers.firmware();
+    writeln!(out, "firmware,{}", firmware.name())?;
+    writeln!(out, r#"firmware version,"{}""#, firmware.version())?;
+
+    if let Some(Ok(date)) = headers.firmware_date() {
+        writeln!(out, r#"firmware date,"{date}""#)?;
+    }
+
+    if let Some(board_info) = headers.board_info() {
+        writeln!(out, r#"board info,"{board_info}""#,)?;
+    }
+
+    if let Some(craft_name) = headers.craft_name() {
+        writeln!(out, r#"craft name,"{craft_name}""#,)?;
+    }
+
+    writeln!(out, "debug mode,{}", headers.debug_mode())?;
+    writeln!(out, "disabled fields,{}", headers.disabled_fields())?;
+    writeln!(out, "features,{}", headers.features())?;
+
+    writeln!(out)?;
+
+    let mut unknown = headers.unknown().iter().collect::<Vec<_>>();
+    unknown.par_sort_unstable_by_key(|(header, _)| *header);
+    for (header, value) in unknown {
+        writeln!(out, r#"{header},"{value}""#)?;
+    }
+
+    Ok(())
 }
 
 fn write_csv_line<T: AsRef<str>>(
