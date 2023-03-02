@@ -88,12 +88,6 @@ fn main() {
                 exitcode::DATAERR
             })?;
 
-            let mut headers_out = get_output(filename, human_i, "headers.csv")?;
-            if let Err(error) = write_headers(&mut headers_out, &headers) {
-                tracing::error!(%error, "failed to write headers file");
-                return Err(exitcode::IOERR);
-            };
-
             let mut parser = DataParser::with_filters(log, &headers, &filters);
 
             let main_frame_def = parser.main_frame_def();
@@ -249,38 +243,6 @@ fn format_value(value: Value) -> String {
         Value::Unsigned(u) => u.to_string(),
         Value::Signed(s) => s.to_string(),
     }
-}
-
-fn write_headers(out: &mut impl Write, headers: &Headers) -> io::Result<()> {
-    let firmware = headers.firmware();
-    writeln!(out, "firmware,{}", firmware.name())?;
-    writeln!(out, r#"firmware version,"{}""#, firmware.version())?;
-
-    if let Some(Ok(date)) = headers.firmware_date() {
-        writeln!(out, r#"firmware date,"{date}""#)?;
-    }
-
-    if let Some(board_info) = headers.board_info() {
-        writeln!(out, r#"board info,"{board_info}""#,)?;
-    }
-
-    if let Some(craft_name) = headers.craft_name() {
-        writeln!(out, r#"craft name,"{craft_name}""#,)?;
-    }
-
-    writeln!(out, "debug mode,{}", headers.debug_mode())?;
-    writeln!(out, "disabled fields,{}", headers.disabled_fields())?;
-    writeln!(out, "features,{}", headers.features())?;
-
-    writeln!(out)?;
-
-    let mut unknown = headers.unknown().iter().collect::<Vec<_>>();
-    unknown.par_sort_unstable_by_key(|(header, _)| *header);
-    for (header, value) in unknown {
-        writeln!(out, r#"{header},"{value}""#)?;
-    }
-
-    Ok(())
 }
 
 fn write_csv_line<T: AsRef<str>>(
