@@ -8,7 +8,7 @@ use std::{iter, process};
 use blackbox_log::data::ParserEvent;
 use blackbox_log::prelude::*;
 use blackbox_log::units::{si, Time};
-use blackbox_log::{frame, FieldFilter, FieldFilterSet, Value};
+use blackbox_log::{frame, Event, FieldFilter, FieldFilterSet, Value};
 use mimalloc::MiMalloc;
 use rayon::prelude::*;
 
@@ -118,21 +118,35 @@ fn main() {
                 _ => None,
             };
 
+            let mut events_out = get_output(filename, human_i, "events.csv")?;
+            if let Err(error) = writeln!(events_out, "time,event") {
+                tracing::error!(%error, "failed to write events csv header");
+                return Err(exitcode::IOERR);
+            }
+
             let mut slow: String = ",".repeat(parser.slow_frame_def().len().saturating_sub(1));
+            let mut last_time = 0;
             while let Some(frame) = parser.next() {
                 match frame {
-                    ParserEvent::Event(_) => {}
+                    ParserEvent::Event(event) => {
+                        if let Err(error) = write_event(&mut events_out, event, last_time) {
+                            tracing::error!(%error, "failed to write event");
+                            return Err(exitcode::IOERR);
+                        }
+                    }
                     ParserEvent::Slow(frame) => {
                         slow.clear();
                         format_slow_frame(&mut slow, frame);
                     }
                     ParserEvent::Main(main) => {
+                        last_time = main.time_raw();
                         if let Err(error) = write_main_frame(&mut out, main, &slow) {
                             tracing::error!(%error, "failed to write csv");
                             return Err(exitcode::IOERR);
                         }
                     }
                     ParserEvent::Gps(gps) => {
+                        last_time = gps.time_raw();
                         if let Some(ref mut out) = gps_out {
                             if let Err(error) = write_gps_frame(out, gps) {
                                 tracing::error!(%error, "failed to write gps csv");
@@ -214,6 +228,20 @@ fn write_gps_frame(out: &mut impl Write, gps: frame::GpsFrame) -> io::Result<()>
     let fields = gps.iter().map(Value::from).map(format_value);
 
     write_csv_line(out, iter::once(time).chain(fields))
+}
+
+fn write_event(out: &mut impl Write, event: Event, last_time: u64) -> io::Result<()> {
+    let (name, time) = match event {
+        Event::SyncBeep(time) => ("Sync beep", Some(time)),
+        Event::InflightAdjustment { .. } => ("Inflight adjustment", None),
+        Event::Resume { time, .. } => ("Logging resume", Some(time.into())),
+        Event::Disarm(_) => ("Disarm", None),
+        Event::FlightMode { .. } => ("Flight mode change", None),
+        Event::ImuFailure { .. } => ("IMU failure", None),
+        Event::End { .. } => ("End", None),
+    };
+
+    writeln!(out, "{},{name}", time.unwrap_or(last_time))
 }
 
 fn format_time(time: Time) -> String {
