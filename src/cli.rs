@@ -38,14 +38,13 @@ OPTIONS:
   -f, --filter <fields>           Select fields to output by name, excluding any suffixed index
                                   (comma separated)
   -F, --gps-filter <fields>       Select gps fields to output by name, like --filter. Implies --gps
-  -v, --verbose                   Increase debug output up to {max_verbose} times
-  -q, --quiet                     Reduce debug output up to {max_quiet} times
+  -v, --verbose                   Increase debug output
+  -q, --quiet                     Reduce output up to {max_quiet} times
       --color <when>              Set when to enable color [auto, always, never]
   -h, --help                      Print this help
   -V, --version                   Print version information"
         ),
         bin = bin,
-        max_verbose = MAX_VERBOSITY - DEFAULT_VERBOSITY,
         max_quiet = DEFAULT_VERBOSITY,
     );
 }
