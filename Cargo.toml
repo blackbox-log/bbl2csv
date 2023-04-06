@@ -20,7 +20,7 @@ name = "bbl2csv"
 
 [dependencies]
 exitcode = "1.1.2"
-is-terminal = "0.4.6"
+is-terminal = "0.4.7"
 lexopt = "0.3.0"
 mimalloc = { version = "0.1.36", default-features = false }
 rayon = "1.7.0"
