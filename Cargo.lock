@@ -54,9 +54,9 @@ dependencies = [
 
 [[package]]
 name = "blackbox-log"
-version = "0.3.0"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "675fb97c036cd26fc701e67e1b8cb168936aed9451b52f134403c4e9c44e0f7e"
+checksum = "ef0d62353d348cfccdd6a801470449161bee017e11146cd3152e466d02d674f8"
 dependencies = [
  "bitvec",
  "hashbrown",
