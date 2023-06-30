@@ -163,7 +163,7 @@ impl Cli {
         Ok(())
     }
 
-    pub(crate) fn enable_color<S: is_terminal::IsTerminal>(&self, stream: S) -> bool {
+    pub(crate) fn enable_color<S: std::io::IsTerminal>(&self, stream: S) -> bool {
         match self.color {
             Color::Auto => stream.is_terminal(),
             Color::Always => true,
