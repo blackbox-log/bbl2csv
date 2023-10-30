@@ -8,7 +8,7 @@ use std::{iter, process};
 use blackbox_log::data::ParserEvent;
 use blackbox_log::prelude::*;
 use blackbox_log::units::{si, Time};
-use blackbox_log::{frame, Event, FieldFilter, FieldFilterSet, Value};
+use blackbox_log::{frame, Event, Filter, FilterSet, Value};
 use mimalloc::MiMalloc;
 use rayon::prelude::*;
 
@@ -32,16 +32,16 @@ fn main() {
         Ok(Action::Run(cli)) => cli,
         Ok(Action::Help) => {
             cli::print_help(&bin);
-            process::exit(exitcode::OK);
+            process::exit(exitcode::OK)
         }
         Ok(Action::Version) => {
             cli::print_version();
-            process::exit(exitcode::OK);
+            process::exit(exitcode::OK)
         }
         #[allow(clippy::print_stderr)]
         Err(err) => {
             eprintln!("{err}");
-            process::exit(exitcode::USAGE);
+            process::exit(exitcode::USAGE)
         }
     };
 
@@ -57,11 +57,15 @@ fn main() {
         process::exit(exitcode::USAGE);
     }
 
-    let filter = cli.filter.map(FieldFilter::from_iter);
-    let filters = FieldFilterSet {
+    let make_filter = |f: Option<Vec<_>>| {
+        f.map(|fields| Filter::OnlyFields(fields.iter().collect()))
+            .unwrap_or_default()
+    };
+    let filter = make_filter(cli.filter);
+    let filters = FilterSet {
         main: filter.clone(),
         slow: filter,
-        gps: cli.gps_filter.map(FieldFilter::from_iter),
+        gps: make_filter(cli.gps_filter),
     };
 
     let result = cli.logs.par_iter().try_for_each(|filename| {
@@ -75,100 +79,101 @@ fn main() {
 
         let file = blackbox_log::File::new(&data);
 
-        (0..file.log_count()).into_par_iter().try_for_each(|i| {
-            let human_i = i + 1;
+        file.iter()
+            .enumerate()
+            .par_bridge()
+            .try_for_each(|(i, headers)| {
+                let human_i = i + 1;
 
-            let span = tracing::info_span!("log", index = human_i);
-            let _span = span.enter();
+                let span = tracing::info_span!("log", index = human_i);
+                let _span = span.enter();
 
-            let mut log = file.get_reader(i);
+                let headers = headers.map_err(|err| {
+                    tracing::debug!("header parse error: {err}");
+                    exitcode::DATAERR
+                })?;
 
-            let headers = Headers::parse(&mut log).map_err(|err| {
-                tracing::debug!("header parse error: {err}");
-                exitcode::DATAERR
-            })?;
+                let mut parser = headers.data_parser_with_filters(&filters);
 
-            let mut parser = DataParser::with_filters(log, &headers, &filters);
+                let main_frame_def = parser.main_frame_def();
+                let slow_frame_def = parser.slow_frame_def();
+                let field_names = main_frame_def
+                    .iter()
+                    .map(|f| f.name)
+                    .chain(slow_frame_def.iter().map(|f| f.name));
+                let field_names = iter::once("time").chain(field_names);
 
-            let main_frame_def = parser.main_frame_def();
-            let slow_frame_def = parser.slow_frame_def();
-            let field_names = main_frame_def
-                .iter()
-                .map(|f| f.name)
-                .chain(slow_frame_def.iter().map(|f| f.name));
-            let field_names = iter::once("time").chain(field_names);
-
-            let mut out = get_output(filename, human_i, "csv")?;
-            if let Err(error) = write_csv_line(&mut out, field_names) {
-                tracing::error!(%error, "failed to write csv header");
-                return Err(exitcode::IOERR);
-            }
-
-            let mut gps_out = match parser.gps_frame_def() {
-                Some(def) if cli.gps => {
-                    let mut out = get_output(filename, human_i, "gps.csv")?;
-
-                    if let Err(error) = write_csv_line(&mut out, def.iter().map(|f| f.name)) {
-                        tracing::error!(%error, "failed to write gps csv header");
-                        return Err(exitcode::IOERR);
-                    }
-
-                    Some(out)
+                let mut out = get_output(filename, human_i, "csv")?;
+                if let Err(error) = write_csv_line(&mut out, field_names) {
+                    tracing::error!(%error, "failed to write csv header");
+                    return Err(exitcode::IOERR);
                 }
-                _ => None,
-            };
 
-            let mut events_out = get_output(filename, human_i, "events.csv")?;
-            if let Err(error) = writeln!(events_out, "time,event") {
-                tracing::error!(%error, "failed to write events csv header");
-                return Err(exitcode::IOERR);
-            }
+                let mut gps_out = match parser.gps_frame_def() {
+                    Some(def) if cli.gps => {
+                        let mut out = get_output(filename, human_i, "gps.csv")?;
 
-            let mut slow: String = ",".repeat(parser.slow_frame_def().len().saturating_sub(1));
-            let mut last_time = 0;
-            while let Some(frame) = parser.next() {
-                match frame {
-                    ParserEvent::Event(event) => {
-                        if let Err(error) = write_event(&mut events_out, event, last_time) {
-                            tracing::error!(%error, "failed to write event");
+                        if let Err(error) = write_csv_line(&mut out, def.iter().map(|f| f.name)) {
+                            tracing::error!(%error, "failed to write gps csv header");
                             return Err(exitcode::IOERR);
                         }
+
+                        Some(out)
                     }
-                    ParserEvent::Slow(frame) => {
-                        slow.clear();
-                        format_slow_frame(&mut slow, frame);
-                    }
-                    ParserEvent::Main(main) => {
-                        last_time = main.time_raw();
-                        if let Err(error) = write_main_frame(&mut out, main, &slow) {
-                            tracing::error!(%error, "failed to write csv");
-                            return Err(exitcode::IOERR);
-                        }
-                    }
-                    ParserEvent::Gps(gps) => {
-                        last_time = gps.time_raw();
-                        if let Some(ref mut out) = gps_out {
-                            if let Err(error) = write_gps_frame(out, gps) {
-                                tracing::error!(%error, "failed to write gps csv");
+                    _ => None,
+                };
+
+                let mut events_out = get_output(filename, human_i, "events.csv")?;
+                if let Err(error) = writeln!(events_out, "time,event") {
+                    tracing::error!(%error, "failed to write events csv header");
+                    return Err(exitcode::IOERR);
+                }
+
+                let mut slow: String = ",".repeat(parser.slow_frame_def().len().saturating_sub(1));
+                let mut last_time = 0;
+                while let Some(frame) = parser.next() {
+                    match frame {
+                        ParserEvent::Event(event) => {
+                            if let Err(error) = write_event(&mut events_out, event, last_time) {
+                                tracing::error!(%error, "failed to write event");
                                 return Err(exitcode::IOERR);
+                            }
+                        }
+                        ParserEvent::Slow(frame) => {
+                            slow.clear();
+                            format_slow_frame(&mut slow, frame);
+                        }
+                        ParserEvent::Main(main) => {
+                            last_time = main.time_raw();
+                            if let Err(error) = write_main_frame(&mut out, main, &slow) {
+                                tracing::error!(%error, "failed to write csv");
+                                return Err(exitcode::IOERR);
+                            }
+                        }
+                        ParserEvent::Gps(gps) => {
+                            last_time = gps.time_raw();
+                            if let Some(ref mut out) = gps_out {
+                                if let Err(error) = write_gps_frame(out, gps) {
+                                    tracing::error!(%error, "failed to write gps csv");
+                                    return Err(exitcode::IOERR);
+                                }
                             }
                         }
                     }
                 }
-            }
 
-            if let Err(error) = out.flush() {
-                tracing::error!(%error, "failed to flush csv");
-                return Err(exitcode::IOERR);
-            }
+                if let Err(error) = out.flush() {
+                    tracing::error!(%error, "failed to flush csv");
+                    return Err(exitcode::IOERR);
+                }
 
-            if let Some(Err(error)) = gps_out.map(|mut out| out.flush()) {
-                tracing::error!(%error, "failed to flush gps csv");
-                return Err(exitcode::IOERR);
-            }
+                if let Some(Err(error)) = gps_out.map(|mut out| out.flush()) {
+                    tracing::error!(%error, "failed to flush gps csv");
+                    return Err(exitcode::IOERR);
+                }
 
-            Ok(())
-        })
+                Ok(())
+            })
     });
 
     if let Err(code) = result {
