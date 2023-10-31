@@ -48,11 +48,4 @@ Summary
 larger improvements since logs are decoded in parallel using
 [`rayon`](https://lib.rs/crates/rayon).
 
-## License
-
-In accordance with the [GNU FAQ][gpl-ports]'s guidance that ports are
-derivative works, all code is licensed under the GPLv3 to match the Betaflight
-and INAV projects.
-
 [bb-log]: https://github.com/blackbox-log/blackbox-log
-[gpl-ports]: https://www.gnu.org/licenses/gpl-faq.html#TranslateCode
