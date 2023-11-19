@@ -31,7 +31,7 @@ version = "0.4.0"
 # path = "../blackbox-log"
 
 [dependencies.tracing-subscriber]
-version = "0.3.17"
+version = "0.3.18"
 default-features = false
 features = ["smallvec", "fmt", "ansi", "std"]
 
