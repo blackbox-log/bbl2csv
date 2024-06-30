@@ -21,7 +21,7 @@ name = "bbl2csv"
 [dependencies]
 exitcode = "1.1.2"
 lexopt = "0.3.0"
-mimalloc = "0.1.42"
+mimalloc = "0.1.43"
 rayon = "1.10.0"
 tracing = { version = "0.1.40", default-features = false, features = ["release_max_level_debug"] }
 
