@@ -38,7 +38,7 @@ fn main() {
             cli::print_version();
             process::exit(exitcode::OK)
         }
-        #[allow(clippy::print_stderr)]
+        #[expect(clippy::print_stderr)]
         Err(err) => {
             eprintln!("{err}");
             process::exit(exitcode::USAGE)

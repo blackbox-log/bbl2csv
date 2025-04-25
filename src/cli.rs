@@ -1,5 +1,3 @@
-#![allow(clippy::default_trait_access)]
-
 use std::convert::Infallible;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -15,10 +13,10 @@ const VERBOSITY_LEVELS: &[LevelFilter] = &[
     LevelFilter::DEBUG,
     LevelFilter::TRACE,
 ];
-#[allow(clippy::cast_possible_wrap)]
+#[expect(clippy::cast_possible_wrap)]
 const MAX_VERBOSITY: isize = VERBOSITY_LEVELS.len() as isize - 1;
 
-#[allow(clippy::print_stderr)]
+#[expect(clippy::print_stderr)]
 pub(crate) fn print_help(bin: &str) {
     eprintln!(
         concat!(
@@ -49,7 +47,7 @@ OPTIONS:
     );
 }
 
-#[allow(clippy::print_stderr)]
+#[expect(clippy::print_stderr)]
 pub(crate) fn print_version() {
     eprintln!(env!("BBL2CSV_VERSION"));
 }
@@ -82,7 +80,7 @@ impl FromStr for Color {
 }
 
 #[derive(Debug, Clone)]
-#[allow(unused, clippy::default_trait_access)]
+#[expect(unused)]
 pub(crate) struct Cli {
     pub index: Vec<usize>,
     pub limits: bool,

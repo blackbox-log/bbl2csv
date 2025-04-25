@@ -57,7 +57,7 @@ unused_qualifications = "warn"
 
 [lints.clippy]
 alloc_instead_of_core = "warn"
-allow_attributes_without_reason = "warn"
+allow_attributes = "warn"
 as_underscore = "deny"
 borrow_as_ptr = "warn"
 cast_lossless = "deny"
